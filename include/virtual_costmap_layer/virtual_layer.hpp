@@ -18,16 +18,18 @@
 #include <dynamic_reconfigure/server.h>
 #include <geometry_msgs/Point.h>
 #include <ros/ros.h>
+// #include <tf/transform_listener.h>
+
 
 #include <custom_msgs/Obstacles.h>
 #include <custom_msgs/Zone.h>
 
-// #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PoseStamped.h>
 
-// #include <stdlib.h>
-// #include <tf/transform_datatypes.h>
+#include <stdlib.h>
+#include <tf/transform_datatypes.h>
 
-// #include <unordered_map>
+#include <unordered_map>
 
 namespace virtual_costmap_layer {
 
@@ -54,7 +56,12 @@ public:
     //// \brief  function which get called at every cost updating procdure of the overlayed costmap. The before readed costs will get filled
     virtual void updateCosts(costmap_2d::Costmap2D &master_grid, int min_i, int min_j, int max_i, int max_j);
 
+
 private:
+    // void getposesub(ros::NodeHandle &nh);
+    // void posecallback();
+
+
     ////  \brief dynamic reconfiguration callback
     void reconfigureCb(VirtualLayerConfig &config, uint32_t level);
 

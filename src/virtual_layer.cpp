@@ -32,9 +32,10 @@ VirtualLayer::~VirtualLayer()
 void VirtualLayer::onInitialize()
 {
     ros::NodeHandle nh("~/" + name_);
+    // ros::NodeHandle nh;
     current_ = true;
 
-    _base_frame = "base_link";
+    _base_frame = "odom"; //"base_link";
     _map_frame = "map";
     _one_zone_mode = true;
     _clear_obstacles = true;
@@ -49,6 +50,8 @@ void VirtualLayer::onInitialize()
 
     // set initial bounds
     _min_x = _min_y = _max_x = _max_y = 0;
+
+    // getposesub(nh);
 
     // reading the defined topics out of the namespace of this plugin!
     std::string param {"zone_topics"};
@@ -67,6 +70,16 @@ void VirtualLayer::onInitialize()
 }
 
 // ---------------------------------------------------------------------
+
+// void VirtualLayer::getposesub(ros::NodeHandle &nh)
+// {
+//     nh. subscribe("tf", 100, posecallback);
+// }
+
+// void VirtualLayer::posecallback(){
+//     ROS_INFO_STREAM(tag << "hey");
+// }
+
 
 void VirtualLayer::parseTopicsFromYaml(ros::NodeHandle &nh, const std::string &param)
 {
@@ -105,7 +118,7 @@ void VirtualLayer::parseTopicsFromYaml(ros::NodeHandle &nh, const std::string &p
 }
 
 // ---------------------------------------------------------------------
-
+// let's fixed it!!!!!!!
 // load polygones, lines and points out of the rosparam server
 void VirtualLayer::parseFormListFromYaml(const ros::NodeHandle &nh, const std::string &param)
 {
@@ -116,9 +129,10 @@ void VirtualLayer::parseFormListFromYaml(const ros::NodeHandle &nh, const std::s
             for (std::size_t i = 0; i < param_yaml.size(); ++i) {
                 geometry_msgs::Point point;
                 Polygon vector_to_add;
+
                 if (param_yaml[i].getType() == XmlRpc::XmlRpcValue::TypeArray) {
                     if (param_yaml[i].size() == 1) { // add a point
-                        try {
+                        try {                        
                             convert(param_yaml[i][0], point);
                         } catch (...) {
                             continue;
@@ -165,6 +179,11 @@ void VirtualLayer::parseFormListFromYaml(const ros::NodeHandle &nh, const std::s
                             vector_to_add.push_back(point);
 
                             _form_polygons.push_back(vector_to_add);
+                            if (robotInZone(vector_to_add) == true) {
+                                ROS_ERROR_STREAM(tag << "Robot point is in the line I made");
+                            }
+
+
                         }
                     } else if (param_yaml[i].size() >= 3) { // add a polygon
                         vector_to_add.reserve(param_yaml[i].size());
@@ -180,11 +199,19 @@ void VirtualLayer::parseFormListFromYaml(const ros::NodeHandle &nh, const std::s
                         if (!vector_to_add.empty()) {
                             _form_polygons.push_back(vector_to_add);
                         }
+                        if (robotInZone(vector_to_add) == true) {
+                            ROS_ERROR_STREAM(tag << "Robot point is in the polygon I made");
+                        } 
                     }
+                    
+                    // computeMapBounds();
                 } else {
                     ROS_ERROR_STREAM(tag << param << " with index #" << i << " is corrupted");
                 }
+
             }
+            
+
 
         } else {
             ROS_ERROR_STREAM(tag << param << "struct is corrupted");
@@ -193,6 +220,7 @@ void VirtualLayer::parseFormListFromYaml(const ros::NodeHandle &nh, const std::s
     } else {
         ROS_ERROR_STREAM(tag << "could not read " << param << " from parameter server");
     }
+
 }
 
 // ---------------------------------------------------------------------
@@ -238,16 +266,35 @@ bool VirtualLayer::robotInZone(const Polygon &zone)
     geometry_msgs::Point point = getRobotPoint();
     std::size_t i, j;
     std::size_t size = zone.size();
-    bool result = false;
+    bool inthezone = false;
+
+    // ROS_ERROR_STREAM(tag << size );
+    ROS_ERROR_STREAM(tag << "below is the pose" );
+
+    // ROS_ERROR_STREAM(tag << zone[0].x );
+    // ROS_ERROR_STREAM(tag << zone[1].x );
+    // ROS_ERROR_STREAM(tag << zone[2].x );
+    // ROS_ERROR_STREAM(tag << zone[3].x );
+
+    ROS_ERROR_STREAM(tag << point.x );
+
+    // ROS_ERROR_STREAM(tag << zone[0].y );
+    // ROS_ERROR_STREAM(tag << zone[1].y );
+    // ROS_ERROR_STREAM(tag << zone[2].y );
+    // ROS_ERROR_STREAM(tag << zone[3].y );
+
+    ROS_ERROR_STREAM(tag << point.y );
+
+    // ROS_ERROR_STREAM(tag << zone[i].y );
 
     for (i = 0, j = size - 1; i < size; j = ++i) {
         if (((zone[i].y > point.y) != (zone[j].y > point.y)) &&
             (point.x < (zone[j].x - zone[i].x) * (point.y - zone[i].y) / (zone[j].y - zone[i].y) + zone[i].x)) {
-            result = !result;
+            inthezone = !inthezone;   
         }
     }
 
-    return result;
+    return inthezone;
 }
 
 // ---------------------------------------------------------------------
@@ -270,7 +317,7 @@ void VirtualLayer::updateBounds(double robot_x, double robot_y, double robot_yaw
 
     std::lock_guard<std::mutex> l(_data_mutex);
 
-    if (_obstacle_points.empty() && _zone_polygons.empty() && _obstacle_polygons.empty()) {
+    if (_obstacle_points.empty() && _zone_polygons.empty() && _obstacle_polygons.empty() && _form_points.empty() &&  _form_polygons.empty()) {
         return;
     }
 
@@ -290,12 +337,13 @@ void VirtualLayer::updateCosts(costmap_2d::Costmap2D &master_grid, int min_i, in
 
     // set costs of zone polygons
     for (int i = 0; i < _zone_polygons.size(); ++i) {
-        setPolygonCost(master_grid, _zone_polygons[i], costmap_2d::LETHAL_OBSTACLE, min_i, min_j, max_i, max_j, false);
+        setPolygonCost(master_grid, _zone_polygons[i], 3 , min_i, min_j, max_i, max_j, false);
     }
+    //3 for costmap variation!! :) make it obstacle when it is 254 or costmap_2d::LETHAL_OBSTACLE
 
     // set costs of obstacle polygons
     for (int i = 0; i < _obstacle_polygons.size(); ++i) {
-        setPolygonCost(master_grid, _obstacle_polygons[i], costmap_2d::LETHAL_OBSTACLE, min_i, min_j, max_i, max_j, true);
+        setPolygonCost(master_grid, _obstacle_polygons[i], 3 , min_i, min_j, max_i, max_j, true);
     }
 
     // set cost of obstacle points
@@ -303,9 +351,33 @@ void VirtualLayer::updateCosts(costmap_2d::Costmap2D &master_grid, int min_i, in
         unsigned int mx;
         unsigned int my;
         if (master_grid.worldToMap(_obstacle_points[i].x, _obstacle_points[i].y, mx, my)) {
-            master_grid.setCost(mx, my, costmap_2d::LETHAL_OBSTACLE);
+            master_grid.setCost(mx, my, 3 );
         }
     }
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // tryign set cost of form points and polygone
+    for (int i = 0; i < _form_polygons.size(); ++i) {
+        setPolygonCost(master_grid, _form_polygons[i], 3 , min_i, min_j, max_i, max_j, true);
+        
+    }
+
+
+    for (int i = 0; i < _form_points.size(); ++i) {
+        unsigned int mx;
+        unsigned int my;
+        if (master_grid.worldToMap(_form_points[i].x, _form_points[i].y, mx, my)) {
+            master_grid.setCost(mx, my, 3 );
+        }
+    }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
 }
 
 void VirtualLayer::computeMapBounds()
@@ -348,6 +420,40 @@ void VirtualLayer::computeMapBounds()
         _max_x = std::max(px, _max_x);
         _max_y = std::max(py, _max_y);
     }
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+        // iterate form polygons
+    for (int i = 0; i < _form_polygons.size(); ++i) {
+        for (int j = 0; j < _form_polygons.at(i).size(); ++j) {
+            double px = _form_polygons.at(i).at(j).x;
+            double py = _form_polygons.at(i).at(j).y;
+            _min_x = std::min(px, _min_x);
+            _min_y = std::min(py, _min_y);
+            _max_x = std::max(px, _max_x);
+            _max_y = std::max(py, _max_y);
+        }
+    }
+
+    // iterate form points
+    for (int i = 0; i < _form_points.size(); ++i) {
+        double px = _form_points.at(i).x;
+        double py = _form_points.at(i).y;
+        _min_x = std::min(px, _min_x);
+        _min_y = std::min(py, _min_y);
+        _max_x = std::max(px, _max_x);
+        _max_y = std::max(py, _max_y);
+    }
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+    
 }
 
 void VirtualLayer::setPolygonCost(costmap_2d::Costmap2D &master_grid, const Polygon &polygon, unsigned char cost,
@@ -484,15 +590,16 @@ void VirtualLayer::rasterizePolygon(const std::vector<PointInt> &polygon, std::v
     }
 }
 
+
 void VirtualLayer::zoneCallback(const custom_msgs::ZoneConstPtr &zone_msg)
 {
-    if (zone_msg->area.form.size() > 2) {
+    if (zone_msg->area.form.size() > 2) { 
         Polygon vector_to_add;
         for (int i = 0; i < zone_msg->area.form.size(); ++i) {
             vector_to_add.push_back(zone_msg->area.form[i]);
         }
 
-        if (!robotInZone(vector_to_add)) {
+        if (robotInZone(vector_to_add) == true) {
             ROS_WARN_STREAM(tag << "Robot point is not the navigation zone");
             return;
         }
@@ -583,18 +690,46 @@ geometry_msgs::Point VirtualLayer::getRobotPoint()
     geometry_msgs::TransformStamped current_transform_msg;
     tf::StampedTransform current_transform_tf;
     try {
+        // ROS_WARN_STREAM(tag << "one" );
         ros::Time now = ros::Time(0);
         tfListener.waitForTransform(_map_frame, _base_frame, now, ros::Duration(1.0));
         now = ros::Time::now();
+        // ROS_WARN_STREAM(tag << "two" );
+
         tfListener.getLatestCommonTime(_map_frame, _base_frame, now, nullptr);
         current_robot_pose_base.header.stamp = now;
         current_robot_pose_base.header.frame_id = _base_frame;
         current_robot_pose_base.pose.orientation = tf::createQuaternionMsgFromYaw(0);
 
-        tfListener.transformPose(_map_frame, current_robot_pose_base, current_robot_pose);
-        robot_point.x = current_robot_pose.pose.position.x;
-        robot_point.y = current_robot_pose.pose.position.y;
+        
+// _base_frame,_map_frame,ros::Time(0),_map_to_base
+        // tfListener.lookupTransform (const std::string &target_frame, const std::string &source_frame, const ros::Time &time, StampedTransform &transform) const
+// no matching function for call to 
+        // tf::TransformListener::lookupTransform(std::__cxx11::string&, std::__cxx11::string&, ros::Time&, geometry_msgs::PoseStamped&)
+
+        // ROS_WARN_STREAM(tag << "three" );
+        // ROS_WARN_STREAM(tag <<  current_robot_pose_base.pose.position.x );
+        
+
+//problems occured 
+        // tfListener.transformPose(_map_frame, 0, 0);
+        // tfListener.transformPose(_map_frame, current_robot_pose_base, current_robot_pose);
+        tfListener.lookupTransform( _map_frame, _base_frame, now, current_transform_tf);
+        ROS_WARN_STREAM(tag << "problem solved" );
+
+       
+        // robot_point.x = current_robot_pose.pose.position.x;
+        // robot_point.y = current_robot_pose.pose.position.y;
+
+        robot_point.x = current_transform_tf.getOrigin().x();
+        robot_point.x = current_transform_tf.getOrigin().y();
         robot_point.z = 0.0;
+
+        // ROS_WARN_STREAM(tag << "heyx" );
+        // ROS_WARN_STREAM(tag << robot_point.x );
+        // ROS_WARN_STREAM(tag << "heyy" );
+        // ROS_WARN_STREAM(tag << robot_point.y );
+
     } catch (tf::TransformException &ex) {
         ROS_DEBUG_STREAM(tag << "Can't get robot pose: " << ex.what());
     }
