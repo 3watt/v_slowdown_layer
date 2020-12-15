@@ -18,8 +18,6 @@
 #include <dynamic_reconfigure/server.h>
 #include <geometry_msgs/Point.h>
 #include <ros/ros.h>
-// #include <tf/transform_listener.h>
-
 
 #include <custom_msgs/Obstacles.h>
 #include <custom_msgs/Zone.h>
@@ -48,6 +46,8 @@ public:
     ///        it defines the reconfigure callback, gets params from server and subscribes to topics
     virtual void onInitialize();
 
+    // virtual std::vector<Polygon> something();
+
     //// \brief this is called by the LayeredCostmap to poll this plugin as to how much of the costmap it needs to update.
     ///        each layer can increase the size of this bounds.
     virtual void updateBounds(double robot_x, double robot_y, double robot_yaw,
@@ -55,9 +55,17 @@ public:
 
     //// \brief  function which get called at every cost updating procdure of the overlayed costmap. The before readed costs will get filled
     virtual void updateCosts(costmap_2d::Costmap2D &master_grid, int min_i, int min_j, int max_i, int max_j);
+    // virtual void overlap();
+    
+    std::vector<geometry_msgs::Point> _obstacle_points;                     // vector to save the obstacle points in source coordinates
+    std::vector<Polygon> _zone_polygons;                                    // vector to save the zone polygons (more than 3 edges) in source coordinates
+    std::vector<Polygon> _obstacle_polygons;                                // vector to save the obstacle polygons (including lines) in source coordinates
+    std::vector<Polygon> _form_polygons;                                    // vector to save the form polygons (including lines) in source coordinates
+    std::vector<geometry_msgs::Point> _form_points;                   // vector to save the form points in source coordinates
 
 
-private:
+
+// private:
     // void getposesub(ros::NodeHandle &nh);
     // void posecallback();
 
@@ -129,7 +137,7 @@ private:
     /// \note                 works only for one zone otherwise returns true
     /// \param zone           polygon zone
     /// \return bool true     if the robot is in the zone
-    bool robotInZone(const Polygon &zone);
+    bool robotInZone(const Polygon &zone, const geometry_msgs::Point &robotpose);
 
     /// \brief gets a current geometry_msgs::Point of the robot
     /// \return Geometry_msgs::Point current pose
@@ -139,17 +147,14 @@ private:
     std::mutex _data_mutex;                                                 // mutex for the accessing forms
     double _costmap_resolution;                                             // resolution of the overlayed costmap to create the thinnest line out of two points
     bool _one_zone_mode, _clear_obstacles;                                  // put in memory previous zones and obstacles if false
-    std::string _base_frame;                                                // base frame of the robot by default "base_link"
-    std::string _map_frame;                                                 // map frame by default "map"
-    std::vector<geometry_msgs::Point> _obstacle_points;                     // vector to save the obstacle points in source coordinates
-    std::vector<Polygon> _zone_polygons;                                    // vector to save the zone polygons (more than 3 edges) in source coordinates
-    std::vector<Polygon> _obstacle_polygons;                                // vector to save the obstacle polygons (including lines) in source coordinates
-    std::vector<Polygon> _form_polygons;                                    // vector to save the form polygons (including lines) in source coordinates
-    std::vector<geometry_msgs::Point> _form_points;                         // vector to save the form points in source coordinates
+    std::string _base_frame;// = "base_link";                                                // base frame of the robot by default "base_link"
+    std::string _map_frame;// = "map";                                               // map frame by default "map"
 
     double _min_x, _min_y, _max_x, _max_y; // cached map bounds
 
     std::vector<ros::Subscriber> _subs; // vector to save all ros subscribers
+
+
 };
 
 } // namespace virtual_costmap_layer
