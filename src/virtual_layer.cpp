@@ -35,7 +35,7 @@ void VirtualLayer::onInitialize()
     // ros::NodeHandle nh;
     current_ = true;
 
-    _base_frame = "odom"; //"base_link";
+    _base_frame = "base_link"; //"odom";//"base_footprint"; //"base_link";
     _map_frame = "map";
     _one_zone_mode = true;
     _clear_obstacles = true;
@@ -48,10 +48,12 @@ void VirtualLayer::onInitialize()
     // save resolution
     _costmap_resolution = layered_costmap_->getCostmap()->getResolution();
 
+
     // set initial bounds
     _min_x = _min_y = _max_x = _max_y = 0;
 
     // getposesub(nh);
+    
 
     // reading the defined topics out of the namespace of this plugin!
     std::string param {"zone_topics"};
@@ -67,19 +69,9 @@ void VirtualLayer::onInitialize()
     computeMapBounds();
 
     ROS_INFO_STREAM(tag << "layer is initialized: [points: " << _form_points.size() << "] [polygons: " << _form_polygons.size() << "]");
+    
+
 }
-
-// ---------------------------------------------------------------------
-
-// void VirtualLayer::getposesub(ros::NodeHandle &nh)
-// {
-//     nh. subscribe("tf", 100, posecallback);
-// }
-
-// void VirtualLayer::posecallback(){
-//     ROS_INFO_STREAM(tag << "hey");
-// }
-
 
 void VirtualLayer::parseTopicsFromYaml(ros::NodeHandle &nh, const std::string &param)
 {
@@ -179,9 +171,8 @@ void VirtualLayer::parseFormListFromYaml(const ros::NodeHandle &nh, const std::s
                             vector_to_add.push_back(point);
 
                             _form_polygons.push_back(vector_to_add);
-                            if (robotInZone(vector_to_add) == true) {
-                                ROS_ERROR_STREAM(tag << "Robot point is in the line I made");
-                            }
+
+
 
 
                         }
@@ -199,20 +190,12 @@ void VirtualLayer::parseFormListFromYaml(const ros::NodeHandle &nh, const std::s
                         if (!vector_to_add.empty()) {
                             _form_polygons.push_back(vector_to_add);
                         }
-                        if (robotInZone(vector_to_add) == true) {
-                            ROS_ERROR_STREAM(tag << "Robot point is in the polygon I made");
-                        } 
-                    }
-                    
+                    }                    
                     // computeMapBounds();
                 } else {
                     ROS_ERROR_STREAM(tag << param << " with index #" << i << " is corrupted");
                 }
-
             }
-            
-
-
         } else {
             ROS_ERROR_STREAM(tag << param << "struct is corrupted");
         }
@@ -256,41 +239,18 @@ void VirtualLayer::convert(const XmlRpc::XmlRpcValue &val, geometry_msgs::Point 
 
 // ---------------------------------------------------------------------
 
-bool VirtualLayer::robotInZone(const Polygon &zone)
+bool VirtualLayer::robotInZone(const Polygon &zone, const geometry_msgs::Point &robotpose)
 {
-    if (!_one_zone_mode) {
-        ROS_WARN_STREAM(tag << "could be applied only for one_zone_mode");
-        return true;
-    }
-
-    geometry_msgs::Point point = getRobotPoint();
-    std::size_t i, j;
+   
+    std::size_t i, j = 0;
     std::size_t size = zone.size();
     bool inthezone = false;
 
-    // ROS_ERROR_STREAM(tag << size );
-    ROS_ERROR_STREAM(tag << "below is the pose" );
+     for (i = 0, j = size - 1; i < size; j = i++ ) {
+        if ( ((zone[i].y > robotpose.y) != (zone[j].y > robotpose.y)) &&
+            (robotpose.x < (zone[j].x - zone[i].x) * (robotpose.y - zone[i].y) / (zone[j].y - zone[i].y) + zone[i].x) ) {
 
-    // ROS_ERROR_STREAM(tag << zone[0].x );
-    // ROS_ERROR_STREAM(tag << zone[1].x );
-    // ROS_ERROR_STREAM(tag << zone[2].x );
-    // ROS_ERROR_STREAM(tag << zone[3].x );
-
-    ROS_ERROR_STREAM(tag << point.x );
-
-    // ROS_ERROR_STREAM(tag << zone[0].y );
-    // ROS_ERROR_STREAM(tag << zone[1].y );
-    // ROS_ERROR_STREAM(tag << zone[2].y );
-    // ROS_ERROR_STREAM(tag << zone[3].y );
-
-    ROS_ERROR_STREAM(tag << point.y );
-
-    // ROS_ERROR_STREAM(tag << zone[i].y );
-
-    for (i = 0, j = size - 1; i < size; j = ++i) {
-        if (((zone[i].y > point.y) != (zone[j].y > point.y)) &&
-            (point.x < (zone[j].x - zone[i].x) * (point.y - zone[i].y) / (zone[j].y - zone[i].y) + zone[i].x)) {
-            inthezone = !inthezone;   
+            inthezone = !inthezone;           
         }
     }
 
@@ -599,10 +559,10 @@ void VirtualLayer::zoneCallback(const custom_msgs::ZoneConstPtr &zone_msg)
             vector_to_add.push_back(zone_msg->area.form[i]);
         }
 
-        if (robotInZone(vector_to_add) == true) {
-            ROS_WARN_STREAM(tag << "Robot point is not the navigation zone");
-            return;
-        }
+        // if (robotInZone(vector_to_add) == true) {
+        //     ROS_WARN_STREAM(tag << "Robot point is not the navigation zone");
+        //     return;
+        // }
 
         if (_one_zone_mode) {
             _zone_polygons.clear();
@@ -684,55 +644,36 @@ void VirtualLayer::obstaclesCallback(const custom_msgs::ObstaclesConstPtr &obsta
 
 geometry_msgs::Point VirtualLayer::getRobotPoint()
 {
+    // _base_frame = "base_link";
     tf::TransformListener tfListener;
     geometry_msgs::PoseStamped current_robot_pose, current_robot_pose_base;
     geometry_msgs::Point robot_point;
     geometry_msgs::TransformStamped current_transform_msg;
     tf::StampedTransform current_transform_tf;
+    
     try {
-        // ROS_WARN_STREAM(tag << "one" );
         ros::Time now = ros::Time(0);
-        tfListener.waitForTransform(_map_frame, _base_frame, now, ros::Duration(1.0));
-        now = ros::Time::now();
-        // ROS_WARN_STREAM(tag << "two" );
 
+        tfListener.waitForTransform(_map_frame, _base_frame, now, ros::Duration(1.0));
         tfListener.getLatestCommonTime(_map_frame, _base_frame, now, nullptr);
         current_robot_pose_base.header.stamp = now;
         current_robot_pose_base.header.frame_id = _base_frame;
         current_robot_pose_base.pose.orientation = tf::createQuaternionMsgFromYaw(0);
 
         
-// _base_frame,_map_frame,ros::Time(0),_map_to_base
-        // tfListener.lookupTransform (const std::string &target_frame, const std::string &source_frame, const ros::Time &time, StampedTransform &transform) const
-// no matching function for call to 
-        // tf::TransformListener::lookupTransform(std::__cxx11::string&, std::__cxx11::string&, ros::Time&, geometry_msgs::PoseStamped&)
+        tfListener.transformPose("map", current_robot_pose_base, current_robot_pose);
+        // tfListener.lookupTransform( _map_frame, _base_frame, now, current_transform_tf);
 
-        // ROS_WARN_STREAM(tag << "three" );
-        // ROS_WARN_STREAM(tag <<  current_robot_pose_base.pose.position.x );
-        
-
-//problems occured 
-        // tfListener.transformPose(_map_frame, 0, 0);
-        // tfListener.transformPose(_map_frame, current_robot_pose_base, current_robot_pose);
-        tfListener.lookupTransform( _map_frame, _base_frame, now, current_transform_tf);
-        ROS_WARN_STREAM(tag << "problem solved" );
-
-       
-        // robot_point.x = current_robot_pose.pose.position.x;
-        // robot_point.y = current_robot_pose.pose.position.y;
-
-        robot_point.x = current_transform_tf.getOrigin().x();
-        robot_point.x = current_transform_tf.getOrigin().y();
+        robot_point.x = current_robot_pose.pose.position.x;
+        robot_point.y = current_robot_pose.pose.position.y;
+        // robot_point.x = current_transform_tf.getOrigin().x();
+        // robot_point.x = current_transform_tf.getOrigin().y();
         robot_point.z = 0.0;
-
-        // ROS_WARN_STREAM(tag << "heyx" );
-        // ROS_WARN_STREAM(tag << robot_point.x );
-        // ROS_WARN_STREAM(tag << "heyy" );
-        // ROS_WARN_STREAM(tag << robot_point.y );
 
     } catch (tf::TransformException &ex) {
         ROS_DEBUG_STREAM(tag << "Can't get robot pose: " << ex.what());
     }
     return robot_point;
 }
+
 } // namespace virtual_costmap_layer
