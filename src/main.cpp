@@ -69,16 +69,11 @@ int main(int argc, char **argv)
             if (vl.robotInZone(vl._form_polygons[i],robot_point) == true) {
                 robot_in_zone_pub_bool.data = true;
                 ROS_ERROR_STREAM("Robot point is in the polygon I made");
-                system("rosrun dynamic_reconfigure dynparam set /move_base/global_costmap/inflater_layer inflation_radius 10");
-                // nh.setParam(param_inflation, 5);
-                // ros::param::set(param_inflation, 5);
-
+                // system("rosrun dynamic_reconfigure dynparam set /move_base/global_costmap/inflater_layer inflation_radius 10");
             }
             else {
-                system("rosrun dynamic_reconfigure dynparam set /move_base/global_costmap/inflater_layer inflation_radius 0");
-                // nh.setParam(param_inflation, 0);
+                // system("rosrun dynamic_reconfigure dynparam set /move_base/global_costmap/inflater_layer inflation_radius 0");
             }
-
             robot_in_zone_pub.publish(robot_in_zone_pub_bool);
             
         }
