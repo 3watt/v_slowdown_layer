@@ -26,10 +26,11 @@ git clone https://github.com/GMahmoud/custom_msgs_demo.git
 
   1-2. Run for working(Kobuki gazebo)
   https://github.com/3watt/kobuki-metapackage 에서 kobuki-metapackage 를 설치하시오.
-  아래의 런치를 실행하고 가제보 상에서 layer 안으로 goal 을 찍으면, Parameter(inflation radius) 가 변경되는 것을 확인 할 수 있다.
+  아래의 런치를 실행하고, 노드를 실행시키면 가제보 상에서 layer 안으로 goal 을 찍으면, Parameter(inflation radius) 가 변경되는 것을 확인 할 수 있다.
 
   ```bash
   roslaunch kobuki_metapackage gazebo_for_layer.launch
+  rosrun virtual_costmap_layer param_changed.py
   ```
 
 
