@@ -3,25 +3,26 @@ Origin : https://github.com/GMahmoud/virtual_costmap_layer.git
 대략적 추가사항:
 
 1. cost value 변경 (원본에서는 costvalue를 LETHAL_OBSTACLES (255) 로 주어서, 장애물로 인식하였는데, 적당한 값(3) 으로 변경하여, 네비게이션을 했을 때, 생성해준 레이어를 피해 가지 않는다.
-  - cost value 변경 : https://github.com/3watt/slowdown_layer/blob/66eb88c9c153b27051fd248a047ca08afe24e7d0/src/virtual_layer.cpp#L319
+  - cost value 변경 
+  '''
+   setPolygonCost(master_grid, _form_polygons[i], 3 , min_i, min_j, max_i, max_j, true);
 
+  '''
 
 
 2. yaml 파일에 있는 form parameter 에 적혀진 좌표들로 만든 polygon에 cost, 바운드 등을 주어, map의 원하는 위치에 layer을 그릴수 있다.
   원본 파일에서는 yaml 에 있는 parameter(form) 좌표에 cost를 부여하거나, bound 를 넣는 부분이 없었다.
-  - map_bound에 추가 : https://github.com/3watt/slowdown_layer/blob/66eb88c9c153b27051fd248a047ca08afe24e7d0/src/virtual_layer.cpp#L382
-  - cost 추가 :
-  https://github.com/3watt/slowdown_layer/blob/66eb88c9c153b27051fd248a047ca08afe24e7d0/src/virtual_layer.cpp#L315
 
 
 3. 로봇이 생성한 레이어 위에 있는지를 보는 robot_in_zone 함수를 새로 생성한 node에서 실행을 시켜 실시간으로 로봇의 pose를 받아와 bool 형의 topic을 publish 해준다.
-  - robot_in_zone 함수 : https://github.com/3watt/slowdown_layer/blob/66eb88c9c153b27051fd248a047ca08afe24e7d0/src/virtual_layer.cpp#L234
-  - 새로 생성한 노드 : src/main.cpp
-  - 노드 cmake 에 추가 : https://github.com/3watt/slowdown_layer/blob/66eb88c9c153b27051fd248a047ca08afe24e7d0/CMakeLists.txt#L52
-  - 로봇 pose 받아오는 line : https://github.com/3watt/slowdown_layer/blob/66eb88c9c153b27051fd248a047ca08afe24e7d0/src/main.cpp#L53
-  - topic pub(robot 이 layer 안에 있을때, true 를 뱉는다.) : https://github.com/3watt/slowdown_layer/blob/66eb88c9c153b27051fd248a047ca08afe24e7d0/src/main.cpp#L72
-  
-  
+
+'''
+// 위치 : src/main.cpp
+add_executable(virtual_layer_node src/main.cpp)
+target_link_libraries(virtual_layer_node ${catkin_LIBRARIES} virtual_layer)
+
+'''
+
 
 
 
