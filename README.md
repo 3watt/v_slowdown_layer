@@ -1,4 +1,42 @@
+
+## Overview
+
 Origin : https://github.com/GMahmoud/virtual_costmap_layer.git
+map 상에서 특정한 구역에 layer 를 설정하고, 그 위에 로봇이 있는지 등을 확인 할 수 있는 pkg 이다. 
+
+* sample.launch : layer를 구현, 확인해보자. //robot 이 layer 안에 있는지 등은 확인 할 수 없음.
+
+## Setup
+
+
+0. Install dependencies
+이 repository 를 git clone 한 이후의 과정.
+pkg 에 수록된 version 파일을 catkin_ws/src 로 빼준다.
+그리고, catkin_ws/src 에 아래의 custom_msgs 를 git clone 해온다.
+```bash
+git clone https://github.com/GMahmoud/custom_msgs_demo.git
+```
+
+1. Run
+  1-1. Run for sample.launch
+    단순히 form(생성한 레이어)를 확인 하고 싶을때, 다음의 launch 를 켜라.
+  ```bash
+  roslaunch virtual_costmap_layer sample.launch
+  ```
+
+  1-2. Run for working(Kobuki gazebo)
+  https://github.com/3watt/kobuki-metapackage 에서 kobuki-metapackage 를 설치하시오.
+  아래의 런치를 실행하고 가제보 상에서 layer 안으로 goal 을 찍으면, Parameter(inflation radius) 가 변경되는 것을 확인 할 수 있다.
+
+  ```bash
+  roslaunch kobuki_metapackage gazebo_for_layer.launch
+  ```
+
+
+
+
+
+
 
 대략적 추가사항:
 
