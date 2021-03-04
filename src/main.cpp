@@ -28,7 +28,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "virtual_layer");
     ros::NodeHandle nh("~");
     ros::Publisher robot_in_zone_pub = nh.advertise<std_msgs::Bool>("robot_in_zone_pub", 1000);
-    ros::Rate loop_rate(10);
+    ros::Rate loop_rate(50);
     std::string param {"/move_base/local_costmap/virtual_layer/forms"};
     std_msgs::Bool robot_in_zone_pub_bool;
     tf::TransformListener tfListener;
@@ -69,16 +69,10 @@ int main(int argc, char **argv)
             if (vl.robotInZone(vl._form_polygons[i],robot_point) == true) {
                 robot_in_zone_pub_bool.data = true;
                 ROS_ERROR_STREAM("Robot point is in the polygon I made");
-                // system("rosrun dynamic_reconfigure dynparam set /move_base/global_costmap/inflater_layer inflation_radius 10");
             }
-            else {
-                // system("rosrun dynamic_reconfigure dynparam set /move_base/global_costmap/inflater_layer inflation_radius 0");
-            }
-            robot_in_zone_pub.publish(robot_in_zone_pub_bool);
-            
         }
         
-
+        robot_in_zone_pub.publish(robot_in_zone_pub_bool);
 
         ros::spinOnce();
         loop_rate.sleep();
