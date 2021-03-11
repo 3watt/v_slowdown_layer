@@ -32,6 +32,8 @@ git clone https://github.com/GMahmoud/custom_msgs_demo.git
   roslaunch kobuki_metapackage gazebo_for_layer.launch
   rosrun virtual_costmap_layer param_changed.py
   ```
+  +) form 을 get param 하는 위치 사용환경(move_base, local, global 등등)에 따라 변경해주어야 한다. (cmake 하는 것도 잊지 말자!)
+  https://github.com/3watt/v_slowdown_layer/blob/abee2528b4dc5be45f4e8b4fe61ba428d4353131/src/main.cpp#L32
 
 
 
